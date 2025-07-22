@@ -22,7 +22,7 @@ exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            mongoose_1.MongooseModule.forRoot("mongodb://localhost:27017/social-media"),
+            mongoose_1.MongooseModule.forRoot("mongodb+srv://guptavedansh2003:eeWbB7XOggQz0s6o@cluster2.cudg071.mongodb.net/"),
             throttler_1.ThrottlerModule.forRoot([
                 {
                     ttl: 60000,

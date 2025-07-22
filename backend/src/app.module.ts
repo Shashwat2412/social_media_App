@@ -10,7 +10,7 @@ import { NotificationsModule } from "./notifications/notifications.module"
 
 @Module({
   imports: [
-    MongooseModule.forRoot("mongodb://localhost:27017/social-media"),
+    MongooseModule.forRoot("mongodb+srv://guptavedansh2003:eeWbB7XOggQz0s6o@cluster2.cudg071.mongodb.net/"),
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute
