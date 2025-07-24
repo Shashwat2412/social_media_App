@@ -24,7 +24,7 @@ let PostsController = class PostsController {
         this.postsService = postsService;
         this.usersService = usersService;
     }
-    async create(createPostDto, req) {
+    async create(req, createPostDto) {
         return this.postsService.queuePost(createPostDto, req.user.sub);
     }
     async getTimeline(req) {
@@ -39,10 +39,10 @@ exports.PostsController = PostsController;
 __decorate([
     (0, common_1.Post)(),
     (0, throttler_1.Throttle)({ default: { limit: 3, ttl: 60000 } }),
-    __param(0, (0, common_1.Body)()),
-    __param(1, (0, common_1.Req)()),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_post_dto_1.CreatePostDto, Object]),
+    __metadata("design:paramtypes", [Object, create_post_dto_1.CreatePostDto]),
     __metadata("design:returntype", Promise)
 ], PostsController.prototype, "create", null);
 __decorate([

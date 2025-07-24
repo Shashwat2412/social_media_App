@@ -12,7 +12,7 @@ export declare class PostsController {
     private postsService;
     private usersService;
     constructor(postsService: PostsService, usersService: UsersService);
-    create(createPostDto: CreatePostDto, req: AuthenticatedRequest): Promise<{
+    create(req: AuthenticatedRequest, createPostDto: CreatePostDto): Promise<{
         message: string;
     }>;
     getTimeline(req: AuthenticatedRequest): Promise<import("./schemas/post.schema").PostDocument[]>;

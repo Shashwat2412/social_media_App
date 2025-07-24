@@ -232,7 +232,7 @@ export class PostsController {
 
   @Post()
   @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 posts per minute
-  async create(@Body() createPostDto: CreatePostDto, @Req() req: AuthenticatedRequest) {
+  async create(@Req() req: AuthenticatedRequest, @Body() createPostDto: CreatePostDto, ) {
     return this.postsService.queuePost(createPostDto, req.user.sub)
   }
 

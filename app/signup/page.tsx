@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,14 +9,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Signup() {
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const { signup } = useAuth()
+  const { signup, user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push("/timeline")
+    }
+  }, [user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,13 +33,28 @@ export default function Signup() {
 
     try {
       await signup(username, email, password)
+      toast({
+        title: "Success",
+        description: "Account created successfully!",
+      })
       router.push("/timeline")
-    } catch (error) {
+    } catch (error: any) {
       console.error("Signup failed:", error)
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Signup failed. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
   }
+
+  // Don't render if user is already logged in
+  if (user) {
+    return null
+  }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center">
@@ -50,11 +73,14 @@ export default function Signup() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
+                                disabled={loading}
+
               />
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required                 disabled={loading}
+ />
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
@@ -65,6 +91,8 @@ export default function Signup() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
+                                disabled={loading}
+
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

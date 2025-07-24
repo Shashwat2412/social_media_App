@@ -34,6 +34,7 @@ let UsersController = class UsersController {
                 type: "follow",
                 message: `${user.username} followed you`,
                 from: user.username,
+                timestamp: new Date().toISOString(),
             });
         }
         return { message: "User followed successfully" };

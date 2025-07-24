@@ -5,6 +5,7 @@ interface AuthenticatedRequest extends Request {
     user: {
         sub: string;
         email: string;
+        username: string;
     };
 }
 export declare class UsersController {

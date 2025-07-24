@@ -41,6 +41,14 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   }
 
   sendNotification(userId: string, notification: any) {
+console.log(`Sending notification to user ${userId}:`, notification)
+
+    // Send to specific user room
     this.server.to(`user_${userId}`).emit("notification", notification)
-  }
+
+    // Also try to send directly to socket if we have it
+    const socketId = this.userSockets.get(userId)
+    if (socketId) {
+      this.server.to(socketId).emit("notification", notification)
+      }  }
 }

@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
-// --- Interfaces ---
 interface Post {
   _id: string
   title: string
@@ -31,22 +30,8 @@ interface User {
   email: string
 }
 
-// --- SVG Icons ---
-const LogoutIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
-
-const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
-
-// --- Main Timeline Component ---
 export default function Timeline() {
-  const { user, logout } = useAuth()
+  const { user, logout, loading: authLoading } = useAuth()
   const { notifications } = useNotifications()
   const { toast } = useToast()
   const router = useRouter()
@@ -56,16 +41,23 @@ export default function Timeline() {
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [loading, setLoading] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return // Wait for auth to initialize
+
     if (!user) {
       router.push("/login")
       return
     }
 
-    fetchTimeline()
-    fetchUsers()
-  }, [user, router])
+    const initializePage = async () => {
+      await Promise.all([fetchTimeline(), fetchUsers()])
+      setPageLoading(false)
+    }
+
+    initializePage()
+  }, [user, authLoading, router])
 
   useEffect(() => {
     // Show toast notifications
@@ -83,38 +75,50 @@ export default function Timeline() {
       setPosts(response.data)
     } catch (error) {
       console.error("Failed to fetch timeline:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch timeline",
+        variant: "destructive",
+      })
     }
   }
 
   const fetchUsers = async () => {
     try {
       const response = await api.get("/users")
-      // Make sure user and user.id exist before filtering
-      setUsers(response.data.filter((u: User) => user && u._id !== user.id))
+      setUsers(response.data.filter((u: User) => u._id !== user?.id))
     } catch (error) {
       console.error("Failed to fetch users:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch users",
+        variant: "destructive",
+      })
     }
   }
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+
     try {
       await api.post("/posts", { title, content })
       setTitle("")
       setContent("")
       toast({
         title: "Post Queued",
-        description: "Your post will be published shortly.",
+        description: "Your post will be published in 5 seconds",
       })
+
+      // Refresh timeline after a delay
       setTimeout(() => {
         fetchTimeline()
       }, 6000)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create post:", error)
       toast({
         title: "Error",
-        description: "Failed to create post",
+        description: error.response?.data?.message || "Failed to create post",
         variant: "destructive",
       })
     } finally {
@@ -129,8 +133,13 @@ export default function Timeline() {
         title: "Success",
         description: "User followed successfully",
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to follow user:", error)
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to follow user",
+        variant: "destructive",
+      })
     }
   }
 
@@ -141,19 +150,45 @@ export default function Timeline() {
         title: "Success",
         description: "User unfollowed successfully",
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to unfollow user:", error)
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to unfollow user",
+        variant: "destructive",
+      })
     }
   }
 
-  if (!user) {
+  // Show loading while auth is initializing
+  if (authLoading || pageLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
-        <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-indigo-500"></div>
-        <p className="ml-4 text-lg">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
       </div>
-    );
+    )
   }
+
+  if (!user) {
+    return null // Will redirect to login
+  }
+
+// --- SVG Icons ---
+const LogoutIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
 
   return (
     // ✨ NEW: Added subtle gradient background for more depth

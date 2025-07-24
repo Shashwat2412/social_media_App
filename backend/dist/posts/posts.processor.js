@@ -32,6 +32,8 @@ let PostsProcessor = class PostsProcessor {
                     message: `${user.username} created a new post`,
                     from: user.username,
                     postId: post._id?.toString(),
+                    postTitle: post.title,
+                    timestamp: new Date().toISOString(),
                 });
             });
         }

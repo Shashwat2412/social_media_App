@@ -349,6 +349,8 @@ interface AuthenticatedRequest extends Request {
   user: {
     sub: string
     email: string
+        username: string
+
   }
 }
 
@@ -376,6 +378,8 @@ export class UsersController {
         type: "follow",
         message: `${user.username} followed you`,
         from: user.username,
+                timestamp: new Date().toISOString(),
+
       })
     }
 

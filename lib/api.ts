@@ -12,7 +12,12 @@ api.interceptors.response.use(
       // Clear auth data on 401
       localStorage.removeItem("token")
       localStorage.removeItem("user")
-      window.location.href = "/login"
+      delete api.defaults.headers.common["Authorization"]
+
+      // Only redirect if we're not already on login/signup pages
+      if (!window.location.pathname.includes("/login") && !window.location.pathname.includes("/signup")) {
+        window.location.href = "/login"
+      }
     }
     return Promise.reject(error)
   },
