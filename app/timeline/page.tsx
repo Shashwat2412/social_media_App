@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
+// --- Interfaces ---
 interface Post {
   _id: string
   title: string
@@ -28,153 +29,8 @@ interface User {
   _id: string
   username: string
   email: string
+  following?: string[]
 }
-
-export default function Timeline() {
-  const { user, logout, loading: authLoading } = useAuth()
-  const { notifications } = useNotifications()
-  const { toast } = useToast()
-  const router = useRouter()
-
-  const [posts, setPosts] = useState<Post[]>([])
-  const [users, setUsers] = useState<User[]>([])
-  const [title, setTitle] = useState("")
-  const [content, setContent] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [pageLoading, setPageLoading] = useState(true)
-
-  useEffect(() => {
-    if (authLoading) return // Wait for auth to initialize
-
-    if (!user) {
-      router.push("/login")
-      return
-    }
-
-    const initializePage = async () => {
-      await Promise.all([fetchTimeline(), fetchUsers()])
-      setPageLoading(false)
-    }
-
-    initializePage()
-  }, [user, authLoading, router])
-
-  useEffect(() => {
-    // Show toast notifications
-    notifications.forEach((notification) => {
-      toast({
-        title: notification.type === "follow" ? "New Follower" : "New Post",
-        description: notification.message,
-      })
-    })
-  }, [notifications, toast])
-
-  const fetchTimeline = async () => {
-    try {
-      const response = await api.get("/posts/timeline")
-      setPosts(response.data)
-    } catch (error) {
-      console.error("Failed to fetch timeline:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch timeline",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get("/users")
-      setUsers(response.data.filter((u: User) => u._id !== user?.id))
-    } catch (error) {
-      console.error("Failed to fetch users:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch users",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleCreatePost = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      await api.post("/posts", { title, content })
-      setTitle("")
-      setContent("")
-      toast({
-        title: "Post Queued",
-        description: "Your post will be published in 5 seconds",
-      })
-
-      // Refresh timeline after a delay
-      setTimeout(() => {
-        fetchTimeline()
-      }, 6000)
-    } catch (error: any) {
-      console.error("Failed to create post:", error)
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to create post",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleFollow = async (userId: string) => {
-    try {
-      await api.post(`/users/follow/${userId}`)
-      toast({
-        title: "Success",
-        description: "User followed successfully",
-      })
-    } catch (error: any) {
-      console.error("Failed to follow user:", error)
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to follow user",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleUnfollow = async (userId: string) => {
-    try {
-      await api.post(`/users/unfollow/${userId}`)
-      toast({
-        title: "Success",
-        description: "User unfollowed successfully",
-      })
-    } catch (error: any) {
-      console.error("Failed to unfollow user:", error)
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to unfollow user",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Show loading while auth is initializing
-  if (authLoading || pageLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null // Will redirect to login
-  }
 
 // --- SVG Icons ---
 const LogoutIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -189,6 +45,126 @@ const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+// --- Main Timeline Component ---
+export default function Timeline() {
+  const { user, logout } = useAuth()
+  const { notifications } = useNotifications()
+  const { toast } = useToast()
+  const router = useRouter()
+
+  const [posts, setPosts] = useState<Post[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [followingList, setFollowingList] = useState<string[]>(user?.following || [])
+
+  useEffect(() => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+    fetchTimeline()
+    fetchUsers()
+  }, [user, router])
+
+  useEffect(() => {
+    // Show toast notifications
+    notifications.forEach((notification) => {
+      toast({
+        title: notification.type === "follow" ? "New Follower" : "New Post",
+        description: notification.message,
+      })
+    })
+  }, [notifications, toast])
+
+  useEffect(() => {
+    if (user?.following) {
+      setFollowingList(user.following)
+    }
+  }, [user])
+
+
+  const fetchTimeline = async () => {
+    try {
+      const response = await api.get("/posts/timeline")
+      setPosts(response.data)
+    } catch (error) {
+      console.error("Failed to fetch timeline:", error)
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get("/users")
+      // Make sure user and user.id exist before filtering
+      setUsers(response.data.filter((u: User) => user && u._id !== user.id))
+    } catch (error) {
+      console.error("Failed to fetch users:", error)
+    }
+  }
+
+  const handleCreatePost = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await api.post("/posts", { title, content })
+      setTitle("")
+      setContent("")
+      toast({
+        title: "Post Queued",
+        description: "Your post will be published shortly.",
+      })
+      setTimeout(() => {
+        fetchTimeline()
+      }, 6000)
+    } catch (error) {
+      console.error("Failed to create post:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create post",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleFollow = async (userId: string) => {
+    try {
+      await api.post(`/users/follow/${userId}`)
+      setFollowingList((prev) => [...prev, userId])
+      toast({
+        title: "Success",
+        description: "User followed successfully",
+      })
+    } catch (error) {
+      console.error("Failed to follow user:", error)
+    }
+  }
+
+  const handleUnfollow = async (userId: string) => {
+    try {
+      await api.post(`/users/unfollow/${userId}`)
+      setFollowingList((prev) => prev.filter((id) => id !== userId))
+      toast({
+        title: "Success",
+        description: "User unfollowed successfully",
+      })
+    } catch (error) {
+      console.error("Failed to unfollow user:", error)
+    }
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+        <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-indigo-500"></div>
+        <p className="ml-4 text-lg">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     // ✨ NEW: Added subtle gradient background for more depth
@@ -305,7 +281,6 @@ const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => (
                     <CardHeader>
                       <CardTitle className="text-xl">{post.title}</CardTitle>
                       <CardDescription>
-                        {/* ✨ NEW: Author name color updated to match the new theme */}
                         by <span className="font-semibold text-indigo-500 dark:text-indigo-400">{post.author.username}</span> • {new Date(post.createdAt).toLocaleDateString()}
                       </CardDescription>
                     </CardHeader>
@@ -331,29 +306,30 @@ const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => (
                     {users.map((u) => (
                       <div key={u._id} className="flex items-center justify-between p-2 -m-2 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
                         <div className="flex items-center space-x-3">
-                          {/* ✨ NEW: User avatars in sidebar now have a fresh pink-to-rose gradient */}
                           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white font-bold">
                             {u.username.charAt(0).toUpperCase()}
                           </div>
                           <span className="font-bold">{u.username}</span>
                         </div>
                         <div className="flex space-x-2">
-                          {/* ✨ NEW: Follow button uses a solid color from the new palette for clear visual hierarchy */}
-                          <Button
-                            size="sm"
-                            onClick={() => handleFollow(u._id)}
-                            className="text-xs px-3 py-1 text-white font-semibold bg-indigo-600 hover:bg-indigo-700 transition-colors transform hover:scale-105"
-                          >
-                            Follow
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleUnfollow(u._id)}
-                            className="text-xs px-3 py-1"
-                          >
-                            Unfollow
-                          </Button>
+                          {followingList.includes(u._id) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUnfollow(u._id)}
+                              className="text-xs px-3 py-1"
+                            >
+                              Unfollow
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleFollow(u._id)}
+                              className="text-xs px-3 py-1 text-white font-semibold bg-indigo-600 hover:bg-indigo-700 transition-colors transform hover:scale-105"
+                            >
+                              Follow
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
